@@ -1,8 +1,8 @@
 # Edit this configuration file to define what should be installed on
 # your system.  Help is available in the configuration.nix(5) man page
-# and in the NixOS manual (accessible by running `nixos-help`).
+# and in the NixOS manual (accessible by running ‘nixos-help’).
 
-{ inputs, config, lib, pkgs, ... }:
+{ config, pkgs, ... }:
 
 {
   imports =
@@ -10,151 +10,81 @@
       ./hardware-configuration.nix
     ];
 
-  # nix
-  nixpkgs = {
-    # You can add overlays here
-    overlays = [
-      # If you want to use overlays exported from other flakes:
-      # neovim-nightly-overlay.overlays.default
+  # Bootloader.
+  boot.loader.systemd-boot.enable = true;
+  boot.loader.efi.canTouchEfiVariables = true;
+  boot.loader.efi.efiSysMountPoint = "/boot/efi";
 
-      # Or define it inline, for example:
-      # (final: prev: {
-      #   hi = final.hello.overrideAttrs (oldAttrs: {
-      #     patches = [ ./change-hello-to-hi.patch ];
-      #   });
-      # })
-    ];
-    # Configure your nixpkgs instance
-    config = {
-      # Disable if you don't want unfree packages
-      allowUnfree = true;
-    };
-  };
-
-  nix = {
-    # This will add each flake input as a registry
-    # To make nix3 commands consistent with your flake
-    registry = lib.mapAttrs (_: value: { flake = value; }) inputs;
-
-    # This will additionally add your inputs to the system's legacy channels
-    # Making legacy nix commands consistent as well, awesome!
-    nixPath = lib.mapAttrsToList (key: value: "${key}=${value.to.path}") config.nix.registry;
-
-    settings = {
-      # Enable flakes and new 'nix' command
-      experimental-features = "nix-command flakes";
-      # Deduplicate and optimize nix store
-      auto-optimise-store = true;
-    };
-  };
-  
-  
-  # Use the systemd-boot EFI boot loader.
-  boot.loader = {
-    efi = {
-      canTouchEfiVariables = true;
-      efiSysMountPoint = "/boot/efi"; # ← use the same mount point here.
-    };
-    grub = {
-      efiSupport = true;
-      #efiInstallAsRemovable = true; # in case canTouchEfiVariables doesn't work for your system
-      device = "nodev";
-      theme = pkgs.stdenv.mkDerivation {
-        name = "catppuccin-mocha";
-        src = pkgs.fetchFromGitHub {
-          owner = "catppuccin";
-          repo = "grub";
-          rev = "803c5df0e83aba61668777bb96d90ab8f6847106";
-          hash = "sha256-/bSolCta8GCZ4lP0u5NVqYQ9Y3ZooYCNdTwORNvR7M0=";         
-        };
-        installPhase = "cp -a src/catppuccin-mocha-grub-theme $out";
-      };
-    };
-  };
-
-  networking.hostName = "unix"; # Define your hostname.
-  # Pick only one of the below networking options.
+  networking.hostName = "nixos"; # Define your hostname.
   # networking.wireless.enable = true;  # Enables wireless support via wpa_supplicant.
-  networking.networkmanager.enable = true;  # Easiest to use and most distros use this by default.
-
-  # Set your time zone.
-  time.timeZone = "Asia/Jakarta";
 
   # Configure network proxy if necessary
   # networking.proxy.default = "http://user:password@proxy:port/";
   # networking.proxy.noProxy = "127.0.0.1,localhost,internal.domain";
 
+  # Enable networking
+  networking.networkmanager.enable = true;
+
+  # Set your time zone.
+  time.timeZone = "Asia/Jakarta";
+
   # Select internationalisation properties.
-  i18n.defaultLocale = "en_US.UTF-8";
-  console = {
-  #   font = "Lat2-Terminus16";
-    keyMap = "us";
-  #   useXkbConfig = true; # use xkbOptions in tty.
+  i18n.defaultLocale = "en_US.utf8";
+
+  i18n.extraLocaleSettings = {
+    LC_ADDRESS = "id_ID.utf8";
+    LC_IDENTIFICATION = "id_ID.utf8";
+    LC_MEASUREMENT = "id_ID.utf8";
+    LC_MONETARY = "id_ID.utf8";
+    LC_NAME = "id_ID.utf8";
+    LC_NUMERIC = "id_ID.utf8";
+    LC_PAPER = "id_ID.utf8";
+    LC_TELEPHONE = "id_ID.utf8";
+    LC_TIME = "id_ID.utf8";
   };
 
   # Enable the X11 windowing system.
-  services = {
-    xserver = {
-      enable = true;
-      videoDrivers = [ "intel" ];
-      deviceSection = ''
-        Option "DRI" "3"
-        Option "TearFree" "true"
-      '';
-      desktopManager = {
-        xfce.enable = true;
-        xfce.enableScreensaver = true;
-        xfce.enableXfwm = true;
-      };
-      displayManager = {
-        lightdm.greeters.gtk.enable = true;
-        autoLogin.enable = true;
-        autoLogin.user = "nekox";
-      #displayManager.lightdm.greeters = true;
-      };
-    };
-    picom = {
-      enable = false;
-      fade = true;
-      inactiveOpacity = 0.9;
-      shadow = true;
-      fadeDelta = 4;
-    };
-  };
+  services.xserver.enable = true;
 
-  programs = {
-    thunar.enable = true;
-    xfconf.enable = true;
-  };
+  nixpkgs.config.allowUnfree = true;
 
-  # Theming
-  qt.enable = true;
-  qt.platformTheme = "gtk2";
-  qt.style = "gtk2";
-
-  # HW Accel
-  nixpkgs.config.packageOverrides = pkgs: {
-    vaapiIntel = pkgs.vaapiIntel.override { enableHybridCodec = true; };
-  };
-  hardware.opengl = {
-    enable = true;
-    extraPackages = with pkgs; [
-      intel-media-driver # LIBVA_DRIVER_NAME=iHD
-      # vaapiIntel         # LIBVA_DRIVER_NAME=i965 (older but works better for Firefox/Chromium)
-      vaapiVdpau
-      libvdpau-va-gl
+  # Enable the GNOME Desktop Environment.
+  services.xserver.displayManager.gdm.enable = true;
+  services.xserver.desktopManager.gnome.enable = true;
+  environment.gnome.excludePackages = with pkgs; [
+    gnome.geary
+    gnome-tour
+    gnome.polari
+    gnome.gnome-maps
+    orca
+    gnome.epiphany
+    gnome.gnome-music
+    geany
+    gnome.gnome-contacts
+    gnome.gnome-weather
+    #gnome-software
+    gnome.totem
+    xterm
+    gnome.simple-scan
+    gnome.cheese
     ];
-  };
+
+  #virtualisation = {
+  #  waydroid.enable = true;
+  #  lxd.enable = true;
+  #}; 
 
   # Configure keymap in X11
-  services.xserver.layout = "us";
-  # services.xserver.xkbOptions = "eurosign:e,caps:escape";
+  services.xserver = {
+    layout = "us";
+    xkbVariant = "";
+  };
 
   # Enable CUPS to print documents.
-  services.printing.enable = false;
+  services.printing.enable = true;
 
-  # Enable sound.
-  sound.enable = false;
+  # Enable sound with pipewire.
+  sound.enable = true;
   hardware.pulseaudio.enable = false;
   security.rtkit.enable = true;
   services.pipewire = {
@@ -163,32 +93,36 @@
     alsa.support32Bit = true;
     pulse.enable = true;
     # If you want to use JACK applications, uncomment this
-    jack.enable = true;
+    #jack.enable = true;
+
+    # use the example session manager (no others are packaged yet so this is enabled by default,
+    # no need to redefine it in your config for now)
+    #media-session.enable = true;
   };
 
   # Enable touchpad support (enabled default in most desktopManager).
-  services.xserver.libinput.enable = true;
+  # services.xserver.libinput.enable = true;
 
   # Define a user account. Don't forget to set a password with ‘passwd’.
-  users.users.nekox = {
-    initialPassword = "123";
+  users.users.nix = {
     isNormalUser = true;
-    extraGroups = [ "wheel" "audio" "video" "networkmanager" "storage" "adm" ]; # Enable ‘sudo’ for the user.
+    description = "nix";
+    extraGroups = [ "networkmanager" "wheel" ];
     packages = with pkgs; [
-      firefox
-  #     tree
+      chromium
+    #  thunderbird
     ];
   };
+
+  # Allow unfree packages
+  # nixpkgs.config.allowUnfree = true;
 
   # List packages installed in system profile. To search, run:
   # $ nix search wget
   environment.systemPackages = with pkgs; [
-  #   vim # Do not forget to add an editor to edit configuration.nix! The Nano editor is also installed by default.
-    wget
-    nano
-    xfce.xfce4-pulseaudio-plugin
-    pavucontrol
-    pulseaudio
+  #  vim # Do not forget to add an editor to edit configuration.nix! The Nano editor is also installed by default.
+  #  wget
+    git
   ];
 
   # Some programs need SUID wrappers, can be configured further or are
@@ -210,18 +144,12 @@
   # Or disable the firewall altogether.
   # networking.firewall.enable = false;
 
-  # Copy the NixOS configuration file and link it from the resulting system
-  # (/run/current-system/configuration.nix). This is useful in case you
-  # accidentally delete configuration.nix.
-  # system.copySystemConfiguration = true;
-
   # This value determines the NixOS release from which the default
   # settings for stateful data, like file locations and database versions
-  # on your system were taken. It's perfectly fine and recommended to leave
+  # on your system were taken. It‘s perfectly fine and recommended to leave
   # this value at the release version of the first install of this system.
   # Before changing this value read the documentation for this option
   # (e.g. man configuration.nix or on https://nixos.org/nixos/options.html).
-  system.stateVersion = "23.11"; # Did you read the comment?
+  system.stateVersion = "22.05"; # Did you read the comment?
 
 }
-
